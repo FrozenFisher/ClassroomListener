@@ -12,19 +12,41 @@
 - 💾 **配置保存**: 自动保存阈值设置
 - 📦 **单文件执行**: 打包成单个exe文件，无需安装
 
+## 版本说明
+
+### 完整版本 (ClassroomListener.exe)
+- 使用真实的麦克风输入
+- 需要PyAudio库支持
+- 功能完整，适合实际使用
+
+### 简化版本 (ClassroomListener-Simple.exe)
+- 使用模拟数据演示功能
+- 无需额外依赖，构建简单
+- 适合演示和测试界面功能
+
 ## 系统要求
 
 - Windows 10/11
-- 麦克风设备
+- 麦克风设备（仅完整版本需要）
 - Python 3.9+ (仅开发环境需要)
+
+## 下载使用
+
+1. 进入[Releases页面](https://github.com/FrozenFisher/ClassroomListener/releases)
+2. 下载最新版本：
+   - `ClassroomListener.exe` - 完整版本（推荐）
+   - `ClassroomListener-Simple.exe` - 简化版本（演示用）
+3. 双击运行程序
+4. 设置分贝阈值（默认70dB）
+5. 点击"开始监控"按钮
 
 ## 使用方法
 
-1. 下载最新版本的 `ClassroomListener.exe`
-2. 双击运行程序
-3. 设置分贝阈值（默认70dB）
-4. 点击"开始监控"按钮
-5. 程序将实时显示当前分贝并监控是否超过阈值
+1. **设置阈值**: 在"阈值设置"框中输入期望的分贝阈值
+2. **开始监控**: 点击"开始监控"按钮开始实时监控
+3. **查看分贝**: 观察顶部的数字显示和下方的分贝条
+4. **接收警告**: 当分贝超过阈值时，会弹出警告窗口
+5. **停止监控**: 点击"停止监控"按钮停止监控
 
 ## 界面说明
 
@@ -40,35 +62,62 @@
 
 ```bash
 # 克隆仓库
-git clone <repository-url>
+git clone https://github.com/FrozenFisher/ClassroomListener.git
 cd ClassroomListener
 
-# 安装依赖
-pip install -r requirements.txt
+# 构建完整版本
+python install_deps.py  # 智能安装依赖
+python build_exe.py     # 构建完整版本
 
-# 运行程序
-python classroom_listener.py
+# 构建简化版本
+pip install pyinstaller
+python build_simple.py  # 构建简化版本
+```
 
-# 构建exe文件
-python build_exe.py
+## 自动构建
+
+项目使用GitHub Actions自动构建：
+
+- 推送标签时自动触发构建
+- 同时构建完整版本和简化版本
+- 自动创建Release并上传exe文件
+
+### 触发构建
+```bash
+# 创建标签
+git tag v1.0.0
+git push origin v1.0.0
 ```
 
 ## 技术栈
 
 - **GUI框架**: tkinter
-- **音频处理**: pyaudio
-- **数值计算**: numpy
+- **音频处理**: pyaudio (完整版本)
+- **数值计算**: numpy (完整版本)
 - **打包工具**: PyInstaller
 
-## 注意事项
+## 故障排除
 
+### PyAudio安装问题
+如果遇到PyAudio编译错误，可以：
+1. 使用简化版本进行演示
+2. 手动安装预编译的PyAudio wheel包
+3. 使用conda安装：`conda install pyaudio`
+
+### 麦克风权限
 - 首次运行可能需要授予麦克风权限
-- 程序需要访问麦克风才能正常工作
-- 建议在安静环境中测试阈值设置
+- 确保麦克风设备正常工作
+- 检查Windows音频设置
+
+### 杀毒软件误报
+- exe文件可能被杀毒软件误报
+- 这是PyInstaller打包的常见情况
+- 可以添加到白名单或使用简化版本
 
 ## 版本历史
 
 - v1.0.0: 初始版本，包含基本的分贝监控和警告功能
+- 添加简化版本支持，解决PyAudio编译问题
 
 ## 许可证
 
