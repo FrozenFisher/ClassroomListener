@@ -7,8 +7,9 @@ on:
   workflow_dispatch:
 
 jobs:
-  build:
+  build-full:
     runs-on: windows-latest
+    name: Build Full Version (with PyAudio)
     
     steps:
     - uses: actions/checkout@v4
@@ -21,7 +22,7 @@ jobs:
     - name: Install dependencies
       run: |
         python -m pip install --upgrade pip
-        pip install -r requirements.txt
+        python install_deps.py
     
     - name: Build executable
       run: |
@@ -30,14 +31,55 @@ jobs:
     - name: Upload artifacts
       uses: actions/upload-artifact@v4
       with:
-        name: ClassroomListener-Windows
+        name: ClassroomListener-Full-Windows
         path: dist/ClassroomListener.exe
+
+  build-simple:
+    runs-on: windows-latest
+    name: Build Simple Version (Demo)
+    
+    steps:
+    - uses: actions/checkout@v4
+    
+    - name: Set up Python
+      uses: actions/setup-python@v5
+      with:
+        python-version: '3.9'
+    
+    - name: Install dependencies
+      run: |
+        python -m pip install --upgrade pip
+        pip install pyinstaller==5.13.2
+    
+    - name: Build simple executable
+      run: |
+        python build_simple.py
+    
+    - name: Upload artifacts
+      uses: actions/upload-artifact@v4
+      with:
+        name: ClassroomListener-Simple-Windows
+        path: dist/ClassroomListener-Simple.exe
+
+  create-release:
+    needs: [build-full, build-simple]
+    runs-on: ubuntu-latest
+    if: startsWith(github.ref, 'refs/tags/')
+    
+    steps:
+    - uses: actions/checkout@v4
+    
+    - name: Download artifacts
+      uses: actions/download-artifact@v4
+      with:
+        path: artifacts
     
     - name: Create Release
-      if: startsWith(github.ref, 'refs/tags/')
       uses: softprops/action-gh-release@v1
       with:
-        files: dist/ClassroomListener.exe
+        files: |
+          artifacts/ClassroomListener-Full-Windows/ClassroomListener.exe
+          artifacts/ClassroomListener-Simple-Windows/ClassroomListener-Simple.exe
         draft: false
         prerelease: false
       env:
