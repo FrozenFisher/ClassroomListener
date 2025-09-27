@@ -1,3 +1,4 @@
+# -*- coding: utf-8 -*-
 import tkinter as tk
 from tkinter import ttk, messagebox
 import threading
@@ -5,8 +6,11 @@ import time
 import math
 import json
 import os
-import wave
-import struct
+import sys
+
+# 设置环境变量解决Windows中文编码问题
+if sys.platform == "win32":
+    os.environ['PYTHONIOENCODING'] = 'utf-8'
 
 class SimpleClassroomListener:
     def __init__(self):
@@ -42,7 +46,7 @@ class SimpleClassroomListener:
         title_label = tk.Label(
             self.root, 
             text="课堂分贝监控器", 
-            font=("Arial", 16, "bold"),
+            font=("Microsoft YaHei", 16, "bold"),
             fg='white',
             bg='#2b2b2b'
         )
@@ -52,7 +56,7 @@ class SimpleClassroomListener:
         self.db_label = tk.Label(
             self.root,
             text="0 dB",
-            font=("Arial", 24, "bold"),
+            font=("Microsoft YaHei", 24, "bold"),
             fg='white',
             bg='#2b2b2b'
         )
@@ -68,7 +72,7 @@ class SimpleClassroomListener:
         tk.Label(
             threshold_frame,
             text="阈值设置:",
-            font=("Arial", 12),
+            font=("Microsoft YaHei", 12),
             fg='white',
             bg='#2b2b2b'
         ).pack(side=tk.LEFT)
@@ -78,14 +82,14 @@ class SimpleClassroomListener:
             threshold_frame,
             textvariable=self.threshold_var,
             width=10,
-            font=("Arial", 12)
+            font=("Microsoft YaHei", 12)
         )
         threshold_entry.pack(side=tk.LEFT, padx=5)
         
         tk.Label(
             threshold_frame,
             text="dB",
-            font=("Arial", 12),
+            font=("Microsoft YaHei", 12),
             fg='white',
             bg='#2b2b2b'
         ).pack(side=tk.LEFT)
@@ -98,7 +102,7 @@ class SimpleClassroomListener:
             button_frame,
             text="开始监控",
             command=self.start_monitoring,
-            font=("Arial", 12),
+            font=("Microsoft YaHei", 12),
             bg='#4CAF50',
             fg='white',
             padx=20,
@@ -110,7 +114,7 @@ class SimpleClassroomListener:
             button_frame,
             text="停止监控",
             command=self.stop_monitoring,
-            font=("Arial", 12),
+            font=("Microsoft YaHei", 12),
             bg='#f44336',
             fg='white',
             padx=20,
@@ -123,7 +127,7 @@ class SimpleClassroomListener:
         self.status_label = tk.Label(
             self.root,
             text="状态: 未开始",
-            font=("Arial", 10),
+            font=("Microsoft YaHei", 10),
             fg='yellow',
             bg='#2b2b2b'
         )
@@ -133,7 +137,7 @@ class SimpleClassroomListener:
         info_label = tk.Label(
             self.root,
             text="注意: 这是简化版本，\n使用模拟数据演示功能",
-            font=("Arial", 9),
+            font=("Microsoft YaHei", 9),
             fg='orange',
             bg='#2b2b2b'
         )
@@ -260,7 +264,7 @@ class SimpleClassroomListener:
         tk.Label(
             alert_window,
             text="⚠️ 分贝过高警告 ⚠️",
-            font=("Arial", 16, "bold"),
+            font=("Microsoft YaHei", 16, "bold"),
             fg='white',
             bg='#ff4444'
         ).pack(pady=20)
@@ -268,7 +272,7 @@ class SimpleClassroomListener:
         tk.Label(
             alert_window,
             text=f"当前分贝: {db:.1f} dB",
-            font=("Arial", 14),
+            font=("Microsoft YaHei", 14),
             fg='white',
             bg='#ff4444'
         ).pack()
@@ -276,7 +280,7 @@ class SimpleClassroomListener:
         tk.Label(
             alert_window,
             text=f"阈值: {self.threshold_db} dB",
-            font=("Arial", 12),
+            font=("Microsoft YaHei", 12),
             fg='white',
             bg='#ff4444'
         ).pack(pady=5)
@@ -286,7 +290,7 @@ class SimpleClassroomListener:
             alert_window,
             text="确定",
             command=alert_window.destroy,
-            font=("Arial", 12),
+            font=("Microsoft YaHei", 12),
             bg='white',
             fg='#ff4444',
             padx=20

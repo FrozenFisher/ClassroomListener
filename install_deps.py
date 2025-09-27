@@ -1,6 +1,17 @@
+# -*- coding: utf-8 -*-
 import subprocess
 import sys
 import platform
+import os
+
+# 设置环境变量解决Windows中文编码问题
+if sys.platform == "win32":
+    os.environ['PYTHONIOENCODING'] = 'utf-8'
+    # 设置控制台代码页为UTF-8
+    try:
+        os.system("chcp 65001 > nul 2>&1")
+    except:
+        pass
 
 def install_pyaudio():
     """安装pyaudio，使用预编译的wheel包"""
