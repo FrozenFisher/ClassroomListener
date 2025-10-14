@@ -1,2 +1,17 @@
-# Created by venv; see https://docs.python.org/3/library/venv.html
+# 基础忽略（默认忽略所有新文件）
 *
+
+# 允许以下目录与其内容被提交
+!build/
+!build/**
+!dist/
+!dist/**
+
+# 允许版本控制的必要文件/目录
+!.gitignore
+!README.md
+!requirements.txt
+!schedule_display.py
+!schedule_display_test.py
+!build_exe.py
+!schedule.xlsx
