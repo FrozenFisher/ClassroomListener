@@ -68,6 +68,7 @@ class ScheduleWindow(QMainWindow):
         
         # 初始化数据
         self.schedule_data = None
+        self.duty_data = None  # 值日生列表 [(label, name)]
         self.load_schedule()
         # 读取设置并应用
         self.load_settings_from_excel()
@@ -109,24 +110,42 @@ class ScheduleWindow(QMainWindow):
             time_col = weekday * 2
             course_col = time_col + 1
             
-            # 提取当天的时间和课程，并过滤纯空行
+            # 提取当天的时间和课程：遇到 END_C 停止课程读取；之后到 END 为值日生
             raw_times = df.iloc[1:, time_col].tolist()
             raw_courses = df.iloc[1:, course_col].tolist()
-            filtered = []
+            class_rows = []
+            duty_rows = []
+            mode = 'class'
             for t, c in zip(raw_times, raw_courses):
-                if (pd.isna(t) and pd.isna(c)) or (str(t).strip() == '' and str(c).strip() == ''):
+                t_str = '' if pd.isna(t) else str(t).strip()
+                c_str = '' if pd.isna(c) else str(c).strip()
+                token = t_str or c_str
+                if token == 'END_C':
+                    mode = 'duty'
                     continue
-                filtered.append((t, c))
-            times = [str(t) for t, _ in filtered]
-            courses = [str(c) for _, c in filtered]
+                if token == 'END':
+                    break
+                if mode == 'class':
+                    class_rows.append((t_str, c_str))
+                else:
+                    duty_rows.append((t_str, c_str))
+
+            times = [t for t, _ in class_rows]
+            courses = [c for _, c in class_rows]
             
             # 更新表格
-            self.table.setRowCount(len(times))
-            for i, (time, course) in enumerate(zip(times, courses)):
-                time_item = QTableWidgetItem(str(time))
-                course_item = QTableWidgetItem(str(course))
-                self.table.setItem(i, 0, time_item)
-                self.table.setItem(i, 1, course_item)
+            self.table.setRowCount(len(times) + len(duty_rows))
+            # 填充课程行
+            row_index = 0
+            for time, course in zip(times, courses):
+                self.table.setItem(row_index, 0, QTableWidgetItem(time))
+                self.table.setItem(row_index, 1, QTableWidgetItem(course))
+                row_index += 1
+            # 填充值日生行（追加）
+            for label, name in duty_rows:
+                self.table.setItem(row_index, 0, QTableWidgetItem(label))
+                self.table.setItem(row_index, 1, QTableWidgetItem(name))
+                row_index += 1
             
             # 调整表格尺寸以适配内容（初始）
             self.adjust_table_to_contents()
@@ -134,6 +153,7 @@ class ScheduleWindow(QMainWindow):
             self.apply_saved_column_widths()
             
             self.schedule_data = list(zip(times, courses))
+            self.duty_data = duty_rows
         except Exception as e:
             print(f"加载课程表出错: {e}")
     
@@ -147,6 +167,7 @@ class ScheduleWindow(QMainWindow):
         
         if self.schedule_data:
             self.highlight_next_class(current_time)
+            self.highlight_duty_period(current_time)
     
     def highlight_next_class(self, current_time):
         # 优先查找当前正在进行的课程；若无，则回退到下一节未开始的课程
@@ -207,6 +228,30 @@ class ScheduleWindow(QMainWindow):
                 if item:
                     item.setBackground(QColor(255, 255, 0))
 
+    def highlight_duty_period(self, current_time):
+        if not self.duty_data:
+            return
+        hour = current_time.hour
+        # 上午 5:00-12:00 高亮以“上午”开头的值日生行；下午 12:00-22:00 高亮以“下午”开头
+        highlight_prefix = None
+        if 5 <= hour < 12:
+            highlight_prefix = '上午'
+        elif 12 <= hour < 22:
+            highlight_prefix = '下午'
+        if not highlight_prefix:
+            return
+
+        # 课程行数量用于偏移
+        class_count = len(self.schedule_data) if self.schedule_data else 0
+        for idx, (label, _) in enumerate(self.duty_data):
+            if isinstance(label, str) and label.startswith(highlight_prefix):
+                table_row = class_count + idx
+                # 同时高亮时间列与姓名列
+                for j in range(2):
+                    item = self.table.item(table_row, j)
+                    if item:
+                        item.setBackground(QColor(255, 255, 0))
+
     def adjust_table_to_contents(self):
         # 根据内容自适应列、行尺寸，但不固定大小，允许拖动扩展
         self.table.resizeColumnsToContents()
@@ -226,8 +271,8 @@ class ScheduleWindow(QMainWindow):
             wb = load_workbook(self.current_file)
             ws = wb.active
             settings = {}
-            # 从 A20 开始读取，最多读取到 A200 以防过大
-            for row in range(20, 201):
+            # 从 A30 开始读取，最多读取到 A400 以防过大
+            for row in range(30, 401):
                 key = ws[f'A{row}'].value
                 val = ws[f'B{row}'].value
                 if key is None and val is None:
@@ -282,7 +327,7 @@ class ScheduleWindow(QMainWindow):
             wb = load_workbook(self.current_file)
             ws = wb.active
 
-            # 将键写入 A 列，值写入 B 列，从 A20 起
+            # 将键写入 A 列，值写入 B 列，从 A30 起
             kv = {
                 'font_size': self.font_spin.value(),
                 'window_width': self.width(),
@@ -295,7 +340,7 @@ class ScheduleWindow(QMainWindow):
             # 先构建现有键索引
             key_to_row = {}
             first_empty = None
-            for row in range(20, 401):
+            for row in range(30, 401):
                 key_cell = ws[f'A{row}']
                 val_cell = ws[f'B{row}']
                 if key_cell.value is None and val_cell.value is None and first_empty is None:
@@ -308,7 +353,7 @@ class ScheduleWindow(QMainWindow):
                 if key in key_to_row:
                     r = key_to_row[key]
                 else:
-                    r = first_empty if first_empty is not None else 20
+                    r = first_empty if first_empty is not None else 30
                     # 若占用则向下寻找空行
                     while ws[f'A{r}'].value is not None or ws[f'B{r}'].value is not None:
                         r += 1

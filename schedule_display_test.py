@@ -76,6 +76,7 @@ class ScheduleWindowTest(QMainWindow):
         self.timer.start(1000)
 
         self.schedule_data = None
+        self.duty_data = None
         self.load_schedule()
         self.load_settings_from_excel()
         self.update_time()
@@ -115,22 +116,41 @@ class ScheduleWindowTest(QMainWindow):
 
             raw_times = df.iloc[1:, time_col].tolist()
             raw_courses = df.iloc[1:, course_col].tolist()
-            filtered = []
+            class_rows = []
+            duty_rows = []
+            mode = 'class'
             for t, c in zip(raw_times, raw_courses):
-                if (pd.isna(t) and pd.isna(c)) or (str(t).strip() == '' and str(c).strip() == ''):
+                t_str = '' if pd.isna(t) else str(t).strip()
+                c_str = '' if pd.isna(c) else str(c).strip()
+                token = t_str or c_str
+                if token == 'END_C':
+                    mode = 'duty'
                     continue
-                filtered.append((t, c))
-            times = [str(t) for t, _ in filtered]
-            courses = [str(c) for _, c in filtered]
+                if token == 'END':
+                    break
+                if mode == 'class':
+                    class_rows.append((t_str, c_str))
+                else:
+                    duty_rows.append((t_str, c_str))
 
-            self.table.setRowCount(len(times))
-            for i, (t, c) in enumerate(zip(times, courses)):
-                self.table.setItem(i, 0, QTableWidgetItem(str(t)))
-                self.table.setItem(i, 1, QTableWidgetItem(str(c)))
+            times = [t for t, _ in class_rows]
+            courses = [c for _, c in class_rows]
+
+            self.table.setRowCount(len(times) + len(duty_rows))
+            row_index = 0
+            for t, c in zip(times, courses):
+                self.table.setItem(row_index, 0, QTableWidgetItem(str(t)))
+                self.table.setItem(row_index, 1, QTableWidgetItem(str(c)))
+                row_index += 1
+            for label, name in duty_rows:
+                self.table.setItem(row_index, 0, QTableWidgetItem(str(label)))
+                self.table.setItem(row_index, 1, QTableWidgetItem(str(name)))
+                row_index += 1
 
             self.adjust_table_to_contents()
             self.apply_saved_column_widths()
             self.schedule_data = list(zip(times, courses))
+            self.duty_data = duty_rows
         except Exception as e:
             print(f"加载课程表出错: {e}")
 
@@ -147,6 +167,7 @@ class ScheduleWindowTest(QMainWindow):
 
         if self.schedule_data:
             self.highlight_next_class(now_dt)
+            self.highlight_duty_period(now_dt)
 
     def highlight_next_class(self, current_time):
         now_time = current_time.time()
@@ -199,6 +220,26 @@ class ScheduleWindowTest(QMainWindow):
                 if item:
                     item.setBackground(QColor(255, 255, 0))
 
+    def highlight_duty_period(self, current_time):
+        if not self.duty_data:
+            return
+        hour = current_time.hour
+        highlight_prefix = None
+        if 5 <= hour < 12:
+            highlight_prefix = '上午'
+        elif 12 <= hour < 22:
+            highlight_prefix = '下午'
+        if not highlight_prefix:
+            return
+        class_count = len(self.schedule_data) if self.schedule_data else 0
+        for idx, (label, _) in enumerate(self.duty_data):
+            if isinstance(label, str) and label.startswith(highlight_prefix):
+                table_row = class_count + idx
+                for j in range(2):
+                    item = self.table.item(table_row, j)
+                    if item:
+                        item.setBackground(QColor(255, 255, 0))
+
     # ------------------ 设置读写 ------------------
     def load_settings_from_excel(self):
         if not self.current_file:
@@ -209,7 +250,7 @@ class ScheduleWindowTest(QMainWindow):
             wb = load_workbook(self.current_file)
             ws = wb.active
             settings = {}
-            for row in range(20, 201):
+            for row in range(30, 401):
                 key = ws[f'A{row}'].value
                 val = ws[f'B{row}'].value
                 if key is None and val is None:
@@ -269,7 +310,7 @@ class ScheduleWindowTest(QMainWindow):
             }
             key_to_row = {}
             first_empty = None
-            for row in range(20, 401):
+            for row in range(30, 401):
                 key_cell = ws[f'A{row}']
                 val_cell = ws[f'B{row}']
                 if key_cell.value is None and val_cell.value is None and first_empty is None:
@@ -280,7 +321,7 @@ class ScheduleWindowTest(QMainWindow):
                 if key in key_to_row:
                     r = key_to_row[key]
                 else:
-                    r = first_empty if first_empty is not None else 20
+                    r = first_empty if first_empty is not None else 30
                     while ws[f'A{r}'].value is not None or ws[f'B{r}'].value is not None:
                         r += 1
                 ws[f'A{r}'] = key
