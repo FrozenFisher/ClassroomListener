@@ -39,6 +39,11 @@ class ScheduleWindow(QMainWindow):
         top_row.addWidget(self.font_label)
         top_row.addWidget(self.font_spin)
 
+        # 单双周切换按钮
+        self.week_button = QPushButton('单周')
+        self.week_button.clicked.connect(self.toggle_week_type)
+        top_row.addWidget(self.week_button)
+        
         # 保存设置
         self.save_button = QPushButton('保存设置')
         self.save_button.clicked.connect(self.save_settings_to_excel)
@@ -55,6 +60,10 @@ class ScheduleWindow(QMainWindow):
         # 保存当前文件路径
         self.current_file = None
         
+        # 单双周状态：0=单周，1=双周
+        self.week_type = 0
+        self.last_week_update = None
+        
         # 创建课程表格
         self.table = QTableWidget()
         self.table.setColumnCount(2)
@@ -69,9 +78,9 @@ class ScheduleWindow(QMainWindow):
         # 初始化数据
         self.schedule_data = None
         self.duty_data = None  # 值日生列表 [(label, name)]
-        self.load_schedule()
-        # 读取设置并应用
+        # 先读取设置（包括单双周状态），再加载课程表
         self.load_settings_from_excel()
+        self.load_schedule()
         self.update_time()
 
         # 允许窗口与表格可伸缩
@@ -106,8 +115,12 @@ class ScheduleWindow(QMainWindow):
             df = pd.read_excel(self.current_file)
             weekday = datetime.now().weekday()  # 0-6，0是周一
             
+            # 根据单双周选择列范围：单周从A列(0)开始，双周从M列(12)开始
+            # 每周7天，每天2列（时间+课程），单周：0-13，双周：12-25
+            base_col = 0 if self.week_type == 0 else 12  # 单周从0，双周从12（M列）
+            
             # 获取对应星期的课程（第1列是周一，第3列是周二，以此类推）
-            time_col = weekday * 2
+            time_col = base_col + weekday * 2
             course_col = time_col + 1
             
             # 提取当天的时间和课程：遇到 END_C 停止课程读取；之后到 END 为值日生
@@ -302,6 +315,29 @@ class ScheduleWindow(QMainWindow):
                         self.resize(w, h)
                 except Exception:
                     pass
+            
+            # 读取单双周状态和最后更新时间
+            if 'week_type' in settings and settings['week_type'] is not None:
+                try:
+                    self.week_type = int(settings['week_type']) % 2
+                except Exception:
+                    self.week_type = 0
+            
+            if 'last_week_update' in settings and settings['last_week_update']:
+                try:
+                    # 存储为字符串格式：YYYY-MM-DD HH:MM:SS
+                    update_str = str(settings['last_week_update'])
+                    self.last_week_update = datetime.strptime(update_str, '%Y-%m-%d %H:%M:%S')
+                except Exception:
+                    # 如果解析失败，使用当前时间
+                    self.last_week_update = datetime.now()
+            else:
+                # 如果没有记录，初始化为当前时间
+                self.last_week_update = datetime.now()
+            
+            # 根据时间差自动切换单双周
+            self.calculate_auto_week_switch()
+            self.update_week_button_text()
 
             # 如有 excel_path，尝试切换并重新加载（支持相对路径：相对应用目录）
             if 'excel_path' in settings and isinstance(settings['excel_path'], str):
@@ -335,6 +371,8 @@ class ScheduleWindow(QMainWindow):
                 'excel_path': self.current_file or '',
                 'col_width_0': self.table.columnWidth(0) if self.table.columnCount() > 0 else 0,
                 'col_width_1': self.table.columnWidth(1) if self.table.columnCount() > 1 else 0,
+                'week_type': self.week_type,
+                'last_week_update': self.last_week_update.strftime('%Y-%m-%d %H:%M:%S') if self.last_week_update else datetime.now().strftime('%Y-%m-%d %H:%M:%S'),
             }
 
             # 先构建现有键索引
@@ -402,6 +440,49 @@ class ScheduleWindow(QMainWindow):
                 self.table.setColumnWidth(1, max(10, w1))
         except Exception:
             pass
+    
+    def toggle_week_type(self):
+        """手动切换单双周"""
+        self.week_type = 1 - self.week_type  # 0变1，1变0
+        self.last_week_update = datetime.now()
+        self.update_week_button_text()
+        self.load_schedule()
+        # 自动保存
+        if self.current_file and self.current_file.lower().endswith('.xlsx'):
+            self.save_settings_to_excel(show_message=False)
+    
+    def update_week_button_text(self):
+        """更新单双周按钮文本"""
+        self.week_button.setText('单周' if self.week_type == 0 else '双周')
+    
+    def calculate_auto_week_switch(self):
+        """根据时间差自动计算并切换单双周：计算两个周一之间的差值"""
+        if self.last_week_update is None:
+            return
+        
+        try:
+            from datetime import timedelta
+            now = datetime.now()
+            
+            # 计算当前时间所在周的周一
+            now_monday = now.date() - timedelta(days=now.weekday())
+            
+            # 计算最后更新时间所在周的周一
+            last_monday = self.last_week_update.date() - timedelta(days=self.last_week_update.weekday())
+            
+            # 计算两个周一之间的天数差
+            delta = now_monday - last_monday
+            days = delta.days
+            
+            # 每7天切换一次，计算切换次数
+            weeks_passed = days // 7
+            if weeks_passed > 0:
+                # 切换相应次数（奇数次切换，偶数次不变）
+                self.week_type = (self.week_type + weeks_passed) % 2
+                self.last_week_update = now
+                self.update_week_button_text()
+        except Exception as e:
+            print(f"自动切换单双周失败: {e}")
 
     # ------------------ 路径工具 ------------------
     def get_app_dir(self):
