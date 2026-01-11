@@ -121,11 +121,24 @@ class ScheduleWindowTest(QMainWindow):
             df = pd.read_excel(self.current_file)
             weekday = datetime.now().weekday()
 
-            # 根据单双周选择列范围：单周从A列(0)开始，双周从M列(12)开始
-            base_col = 0 if self.week_type == 0 else 12  # 单周从0，双周从12（M列）
+            # 根据单双周选择列范围：单周从A列(0)开始，双周从O列(14)开始
+            base_col = 0 if self.week_type == 0 else 14  # 单周从0，双周从14（O列）
             
             time_col = base_col + weekday * 2
             course_col = time_col + 1
+            
+            # 检查列索引是否越界
+            if course_col >= len(df.columns):
+                # 如果双周时列数不够，回退到单周
+                if self.week_type == 1:
+                    QMessageBox.warning(self, "提示", "Excel文件中没有双周数据，已切换为单周")
+                    self.week_type = 0
+                    base_col = 0
+                    time_col = base_col + weekday * 2
+                    course_col = time_col + 1
+                else:
+                    QMessageBox.warning(self, "错误", f"Excel文件列数不足，需要至少{course_col + 1}列")
+                    return
 
             raw_times = df.iloc[1:, time_col].tolist()
             raw_courses = df.iloc[1:, course_col].tolist()
